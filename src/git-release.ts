@@ -1,4 +1,4 @@
-import { window, QuickPickItem, Selection } from "vscode";
+import { window, QuickPickItem, ProgressLocation } from "vscode";
 import { exec, ExecException, ExecOptions } from "child_process";
 
 interface ReleaseOption extends QuickPickItem {
@@ -16,8 +16,8 @@ interface ExecResult {
   err?: ExecException;
 }
 
-const versionRegex = "^v([0-9]*).([0-9]*).([0-9]*)";
-const latestCommand = "set -o pipefail && git tag | sort -r";
+const versionRegex = /^Current version:\s*v([0-9]*)\.([0-9]*)\.([0-9]*)/gm;
+const latestCommand = "git release current";
 
 function getItems(version: number[]): ReleaseOption[] {
   const current = version.join(".");
@@ -46,7 +46,7 @@ async function execute(
   options?: ExecOptions
 ): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
-    exec(command, {...options, encoding: 'utf-8'}, (err, stdout, stderr) => {
+    exec(command, { encoding: 'utf8', shell: "/usr/bin/tcsh", ...options }, (err, stdout, stderr) => {
       if (err) {
         reject({ err, stdout, stderr });
       } else resolve({ stdout, stderr });
@@ -54,27 +54,30 @@ async function execute(
   });
 }
 
-function reportError(err: any) {
+function reportError(err: any, message?: string) {
   console.error(err);
-  window.showErrorMessage(`Release failed!\n${err}`);
+  window.showErrorMessage(message || `Release failed! ${err}`);
 }
 
 export async function gitRelease() {
   try {
     let cwd = window.activeTextEditor?.document.uri.fsPath;
     cwd = cwd?.slice(0, cwd.lastIndexOf("/"));
-    console.log(cwd)
+
     let result = await execute(latestCommand, { cwd });
-    console.log(result.stdout);
-    let regex = new RegExp(versionRegex, "g");
-    let matches = regex.exec(result.stdout);
-    let version = matches ? matches.slice(1, 4).map(parseInt) : [0, 0, 0];
+    let matches = versionRegex.exec(result.stdout);
+    let version = matches ? matches.slice(1, 4).map((val) => parseInt(val)) : [0, 0, 0];
+
     let selection = await window.showQuickPick(getItems(version), {
       canPickMany: false,
       placeHolder: "Release Type..."
     });
     if (selection) {
-      result = await execute(selection?.command);
+      let selection_ = selection;
+      await window.withProgress({ location: ProgressLocation.Notification }, (progress) => {
+        progress.report({message: "Release in progress..."});
+        return execute(selection_.command, { cwd })
+      });
       window.showInformationMessage("Release succeeded!");
     }
   } catch (err) {
