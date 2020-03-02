@@ -4,6 +4,9 @@
   "description": "A BNL CAD VSCode extension",
   "publisher": "sclark",
   "version": "0.0.1",
+  "repository": {
+    "url": "https://gitlab.pbn.bnl.gov/sclark/vscode-plugin"
+  },
   "engines": {
     "vscode": "^1.41.0"
   },
@@ -28,11 +31,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "yarn run compile",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "lint": "eslint src --ext ts",
     "watch": "tsc -watch -p ./",
-    "pretest": "yarn run compile && yarn run lint",
+    "pretest": "npm run compile && npm run lint",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
