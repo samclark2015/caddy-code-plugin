@@ -8,6 +8,6 @@ build:
       - node_modules
   artifacts:
     paths:
-      - *.vsix
+      - '*.vsix'
     expire_in: 3 months
   
