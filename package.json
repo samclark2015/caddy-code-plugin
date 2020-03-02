@@ -11,7 +11,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:cad.release"
+    "onCommand:cad.release",
+    "onCommand:cad.upgrade"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -19,6 +20,10 @@
       {
         "command": "cad.release",
         "title": "Release CAD Project"
+      },
+      {
+        "command": "cad.upgrade",
+        "title": "Upgrade CAD Project"
       }
     ]
   },

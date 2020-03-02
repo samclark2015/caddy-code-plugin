@@ -1,5 +1,15 @@
 import { window, QuickPickItem, ProgressLocation } from "vscode";
-import { exec, ExecException, ExecOptions } from "child_process";
+import { execute, reportError, ExecResult } from "./utils";
+
+function errorMessage(code: number) {
+  switch (code) {
+    case 1: return "No commits made since last release.";
+    case 2: return "Behind latest release on origin.";
+    case 3: return "Bad option given.";
+    case 4: return "Pre-release hook failed.";
+    default: return "Unknown error."
+  }
+}
 
 interface ReleaseOption extends QuickPickItem {
   label: string;
@@ -10,13 +20,8 @@ interface ReleaseOption extends QuickPickItem {
   alwaysShow?: boolean | undefined;
 }
 
-interface ExecResult {
-  stdout: string;
-  stderr: string;
-  err?: ExecException;
-}
 
-const versionRegex = /^Current version:\s*v([0-9]*)\.([0-9]*)\.([0-9]*)/gm;
+
 const latestCommand = "git release current";
 
 function getItems(version: number[]): ReleaseOption[] {
@@ -41,30 +46,16 @@ function getItems(version: number[]): ReleaseOption[] {
   ];
 }
 
-async function execute(
-  command: string,
-  options?: ExecOptions
-): Promise<ExecResult> {
-  return new Promise((resolve, reject) => {
-    exec(command, { encoding: 'utf8', shell: "/usr/bin/tcsh", ...options }, (err, stdout, stderr) => {
-      if (err) {
-        reject({ err, stdout, stderr });
-      } else resolve({ stdout, stderr });
-    });
-  });
-}
-
-function reportError(err: any, message?: string) {
-  console.error(err);
-  window.showErrorMessage(message || `Release failed! ${err}`);
-}
-
 export async function gitRelease() {
-  try {
-    let cwd = window.activeTextEditor?.document.uri.fsPath;
-    cwd = cwd?.slice(0, cwd.lastIndexOf("/"));
+  const versionRegex = /^Current version:\s*v([0-9]*)\.([0-9]*)\.([0-9]*)/gm;
 
-    let result = await execute(latestCommand, { cwd });
+  let cwd = window.activeTextEditor?.document.uri.fsPath;
+  cwd = cwd?.slice(0, cwd.lastIndexOf("/"));
+  try {
+    const result = await window.withProgress({ location: ProgressLocation.Notification }, (progress) => {
+      progress.report({ message: "Fetching latest release..." });
+      return execute(latestCommand, { cwd });
+    });
     let matches = versionRegex.exec(result.stdout);
     let version = matches ? matches.slice(1, 4).map((val) => parseInt(val)) : [0, 0, 0];
 
@@ -75,12 +66,12 @@ export async function gitRelease() {
     if (selection) {
       let selection_ = selection;
       await window.withProgress({ location: ProgressLocation.Notification }, (progress) => {
-        progress.report({message: "Release in progress..."});
+        progress.report({ message: "Release in progress..." });
         return execute(selection_.command, { cwd })
       });
       window.showInformationMessage("Release succeeded!");
     }
   } catch (err) {
-    reportError(err.stderr);
+    reportError(err, errorMessage(err.code));
   }
 }
