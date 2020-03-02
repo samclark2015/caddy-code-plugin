@@ -1,13 +1,13 @@
 build:
   script:
     - npm install
-    - npx --cache ./npm_cache vsce package -o ./dist
+    - npx --cache ./npm_cache vsce package -o cad.vsix
   cache:
     paths:
       - npm_cache
       - node_modules
   artifacts:
     paths:
-      - dist/*
+      - *.vsix
     expire_in: 3 months
   
