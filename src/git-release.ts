@@ -1,13 +1,18 @@
-import { window, QuickPickItem, ProgressLocation } from "vscode";
-import { execute, reportError, ExecResult } from "./utils";
+import { window, workspace, QuickPickItem, ProgressLocation, commands } from "vscode";
+import { execute, reportError } from "./utils";
 
+/**
+ * Convert result code to string 
+ * @param code Return code from caddy process
+ * @returns Human-readable error condition
+ */
 function errorMessage(code: number) {
   switch (code) {
     case 1: return "No commits made since last release.";
     case 2: return "Behind latest release on origin.";
     case 3: return "Bad option given.";
     case 4: return "Pre-release hook failed.";
-    default: return "Unknown error."
+    default: return "Unknown error.";
   }
 }
 
@@ -46,11 +51,28 @@ function getItems(version: number[]): ReleaseOption[] {
   ];
 }
 
+/**
+ * Execute the git semantic versioning release using the caddy tool, prompting the user for a version as input
+ * @returns Nothing
+ */
 export async function gitRelease() {
   const versionRegex = /^Current version:\s*v([0-9]*)\.([0-9]*)\.([0-9]*)/gm;
 
-  let cwd = window.activeTextEditor?.document.uri.fsPath;
-  cwd = cwd?.slice(0, cwd.lastIndexOf("/"));
+  let cwd: string | undefined;
+  if (workspace.workspaceFolders) {
+    if (workspace.workspaceFolders?.length > 1) {
+      let result = await window.showWorkspaceFolderPick();
+      cwd = result?.uri.fsPath;
+    } else {
+      cwd = workspace.workspaceFolders[0].uri.fsPath;
+    }
+  }
+
+  if (!cwd) {
+    window.showErrorMessage("Invalid workspace selection.");
+    return;
+  }
+
   try {
     const result = await window.withProgress({ location: ProgressLocation.Notification }, (progress) => {
       progress.report({ message: "Fetching latest release..." });
@@ -67,11 +89,14 @@ export async function gitRelease() {
       let selection_ = selection;
       await window.withProgress({ location: ProgressLocation.Notification }, (progress) => {
         progress.report({ message: "Release in progress..." });
-        return execute(selection_.command, { cwd })
+        return execute(selection_.command, { cwd });
       });
       window.showInformationMessage("Release succeeded!");
     }
-  } catch (err) {
+  } catch (err: any) {
     reportError(err, errorMessage(err.code));
+    if (err.code === 1 || err.code === 2) {
+      commands.executeCommand("workbench.scm.focus");
+    }
   }
 }
