@@ -1,10 +1,13 @@
 build:
   script:
+    - npm install
     - npx --cache ./npm_cache vsce package -o ./dist
   cache:
     paths:
       - npm_cache
+      - node_modules
   artifacts:
     paths:
       - dist/*
     expire_in: 3 months
+  
