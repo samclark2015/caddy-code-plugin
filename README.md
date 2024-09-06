@@ -8,3 +8,5 @@ The tool provides two functions:
 2. A project template helper to allow developers to migrate projects to the latest version of the standard template for a given project type.
 
 Both of these functions are exposed as VSCode commands, accessible through the command palette. These commands also interact with the VSCode UI elements to prompt user choices and inform users of status updates and errors.
+
+This tool is used extensively by the software group for management of Python application and library development workflows.
